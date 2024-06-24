@@ -3,202 +3,199 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>移动适配版贪吃蛇游戏</title>
+    <title>手机竖屏版贪吃蛇游戏</title>
     <style>
         body {
             margin: 0;
             padding: 0;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             height: 100vh;
             background-color: #f0f0f0;
-            overflow: hidden;
+            font-family: Arial, sans-serif;
         }
         #gameCanvas {
             border: 2px solid #333;
             max-width: 100%;
-            max-height: 100%;
+            max-height: 70vh;
+        }
+        #score {
+            font-size: 24px;
+            margin: 10px 0;
+        }
+        #controls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .control-btn {
+            width: 60px;
+            height: 60px;
+            font-size: 24px;
+            border: none;
+            border-radius: 50%;
+            background-color: #4CAF50;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            touch-action: manipulation;
+        }
+        #startBtn {
+            grid-column: span 3;
+            width: 100%;
+            height: 50px;
+            border-radius: 25px;
         }
     </style>
 </head>
 <body>
+    <div id="score">得分: 0</div>
     <canvas id="gameCanvas"></canvas>
+    <div id="controls">
+        <button id="startBtn" class="control-btn">开始游戏</button>
+        <div></div>
+        <button id="upBtn" class="control-btn">↑</button>
+        <div></div>
+        <button id="leftBtn" class="control-btn">←</button>
+        <div></div>
+        <button id="rightBtn" class="control-btn">→</button>
+        <div></div>
+        <button id="downBtn" class="control-btn">↓</button>
+        <div></div>
+    </div>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+        const startBtn = document.getElementById('startBtn');
 
         let WIDTH, HEIGHT, BLOCK_SIZE, GRID_WIDTH, GRID_HEIGHT;
+        let snake, direction, food, score, gameInterval;
 
         function resizeGame() {
-            const maxWidth = window.innerWidth * 0.95;
-            const maxHeight = window.innerHeight * 0.95;
-            const aspectRatio = 4/3;
-
-            if (maxWidth / aspectRatio > maxHeight) {
-                HEIGHT = maxHeight;
-                WIDTH = HEIGHT * aspectRatio;
-            } else {
-                WIDTH = maxWidth;
-                HEIGHT = WIDTH / aspectRatio;
-            }
-
-            BLOCK_SIZE = Math.floor(WIDTH / 20);
+            const maxWidth = window.innerWidth * 0.9;
+            const maxHeight = window.innerHeight * 0.6;
+            
+            WIDTH = maxWidth;
+            HEIGHT = maxHeight;
+            
+            BLOCK_SIZE = Math.floor(Math.min(WIDTH, HEIGHT) / 15);
             GRID_WIDTH = Math.floor(WIDTH / BLOCK_SIZE);
             GRID_HEIGHT = Math.floor(HEIGHT / BLOCK_SIZE);
 
             canvas.width = GRID_WIDTH * BLOCK_SIZE;
             canvas.height = GRID_HEIGHT * BLOCK_SIZE;
 
-            // 重新初始化游戏状态
             initializeGame();
         }
-
-        let snake, direction, food, score, snakeColor;
 
         function initializeGame() {
             snake = [{x: Math.floor(GRID_WIDTH / 2), y: Math.floor(GRID_HEIGHT / 2)}];
             direction = 'RIGHT';
-            food = {};
             score = 0;
-            snakeColor = '#00FF00';
             generateFood();
+            updateScore();
         }
 
         function generateFood() {
-            food = {
-                x: Math.floor(Math.random() * GRID_WIDTH),
-                y: Math.floor(Math.random() * GRID_HEIGHT)
-            };
-            while (snake.some(segment => segment.x === food.x && segment.y === food.y)) {
+            do {
                 food = {
                     x: Math.floor(Math.random() * GRID_WIDTH),
                     y: Math.floor(Math.random() * GRID_HEIGHT)
                 };
-            }
+            } while (snake.some(segment => segment.x === food.x && segment.y === food.y));
         }
 
-        function isPositionSafe(pos) {
-            return pos.x >= 0 && pos.x < GRID_WIDTH && pos.y >= 0 && pos.y < GRID_HEIGHT &&
-                   !snake.some((segment, index) => index !== 0 && segment.x === pos.x && segment.y === pos.y);
+        function updateScore() {
+            scoreElement.textContent = `得分: ${score}`;
         }
 
-        function getNextPosition(pos, dir) {
-            switch(dir) {
-                case 'UP': return {x: pos.x, y: pos.y - 1};
-                case 'DOWN': return {x: pos.x, y: pos.y + 1};
-                case 'LEFT': return {x: pos.x - 1, y: pos.y};
-                case 'RIGHT': return {x: pos.x + 1, y: pos.y};
-            }
-        }
-
-        function simpleMove() {
-            const head = snake[0];
-            const directions = ['UP', 'DOWN', 'LEFT', 'RIGHT'];
-            const safeDirections = directions.filter(dir => 
-                isPositionSafe(getNextPosition(head, dir))
-            );
-
-            if (safeDirections.length === 0) return direction;
-
-            let foodDir = null;
-            if (food.x < head.x) foodDir = 'LEFT';
-            else if (food.x > head.x) foodDir = 'RIGHT';
-            else if (food.y < head.y) foodDir = 'UP';
-            else if (food.y > head.y) foodDir = 'DOWN';
-
-            if (foodDir && safeDirections.includes(foodDir)) {
-                return foodDir;
-            } else {
-                return safeDirections[Math.floor(Math.random() * safeDirections.length)];
-            }
-        }
-
-        function drawSnake() {
-            snake.forEach((segment, index) => {
-                ctx.fillStyle = snakeColor;
-                if (index === 0) {  // 头部
-                    ctx.fillRect(segment.x * BLOCK_SIZE, segment.y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
-                    // 画眼睛
-                    ctx.fillStyle = 'black';
-                    const eyeRadius = BLOCK_SIZE / 5;
-                    if (direction === 'RIGHT') {
-                        ctx.beginPath();
-                        ctx.arc(segment.x * BLOCK_SIZE + BLOCK_SIZE - eyeRadius, segment.y * BLOCK_SIZE + eyeRadius, eyeRadius, 0, 2 * Math.PI);
-                        ctx.arc(segment.x * BLOCK_SIZE + BLOCK_SIZE - eyeRadius, segment.y * BLOCK_SIZE + BLOCK_SIZE - eyeRadius, eyeRadius, 0, 2 * Math.PI);
-                        ctx.fill();
-                    } else if (direction === 'LEFT') {
-                        ctx.beginPath();
-                        ctx.arc(segment.x * BLOCK_SIZE + eyeRadius, segment.y * BLOCK_SIZE + eyeRadius, eyeRadius, 0, 2 * Math.PI);
-                        ctx.arc(segment.x * BLOCK_SIZE + eyeRadius, segment.y * BLOCK_SIZE + BLOCK_SIZE - eyeRadius, eyeRadius, 0, 2 * Math.PI);
-                        ctx.fill();
-                    } else if (direction === 'UP') {
-                        ctx.beginPath();
-                        ctx.arc(segment.x * BLOCK_SIZE + eyeRadius, segment.y * BLOCK_SIZE + eyeRadius, eyeRadius, 0, 2 * Math.PI);
-                        ctx.arc(segment.x * BLOCK_SIZE + BLOCK_SIZE - eyeRadius, segment.y * BLOCK_SIZE + eyeRadius, eyeRadius, 0, 2 * Math.PI);
-                        ctx.fill();
-                    } else if (direction === 'DOWN') {
-                        ctx.beginPath();
-                        ctx.arc(segment.x * BLOCK_SIZE + eyeRadius, segment.y * BLOCK_SIZE + BLOCK_SIZE - eyeRadius, eyeRadius, 0, 2 * Math.PI);
-                        ctx.arc(segment.x * BLOCK_SIZE + BLOCK_SIZE - eyeRadius, segment.y * BLOCK_SIZE + BLOCK_SIZE - eyeRadius, eyeRadius, 0, 2 * Math.PI);
-                        ctx.fill();
-                    }
-                } else if (index === snake.length - 1) {  // 尾部
-                    ctx.strokeStyle = snakeColor;
-                    ctx.strokeRect(segment.x * BLOCK_SIZE, segment.y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
-                } else {  // 身体
-                    ctx.fillRect(segment.x * BLOCK_SIZE, segment.y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
-                }
-            });
-        }
-
-        function gameOver() {
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+        function drawGame() {
+            ctx.fillStyle = '#f0f0f0';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 画蛇
+            snake.forEach((segment, index) => {
+                ctx.fillStyle = index === 0 ? '#4CAF50' : '#2E7D32';
+                ctx.fillRect(segment.x * BLOCK_SIZE, segment.y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
+            });
+
+            // 画食物
             ctx.fillStyle = 'red';
-            ctx.font = `${BLOCK_SIZE * 2}px Arial`;
-            ctx.textAlign = 'center';
-            ctx.fillText(`游戏结束!`, canvas.width / 2, canvas.height / 2 - BLOCK_SIZE);
-            ctx.fillText(`得分: ${score}`, canvas.width / 2, canvas.height / 2 + BLOCK_SIZE);
-            clearInterval(gameInterval);
+            ctx.fillRect(food.x * BLOCK_SIZE, food.y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
         }
 
-        function gameLoop() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        function moveSnake() {
+            const head = {...snake[0]};
 
-            direction = simpleMove();
-            const newHead = getNextPosition(snake[0], direction);
+            switch(direction) {
+                case 'UP': head.y--; break;
+                case 'DOWN': head.y++; break;
+                case 'LEFT': head.x--; break;
+                case 'RIGHT': head.x++; break;
+            }
 
-            if (!isPositionSafe(newHead)) {
+            if (head.x < 0 || head.x >= GRID_WIDTH || head.y < 0 || head.y >= GRID_HEIGHT ||
+                snake.some(segment => segment.x === head.x && segment.y === head.y)) {
                 gameOver();
                 return;
             }
 
-            snake.unshift(newHead);
+            snake.unshift(head);
 
-            if (newHead.x === food.x && newHead.y === food.y) {
+            if (head.x === food.x && head.y === food.y) {
                 score++;
+                updateScore();
                 generateFood();
-                snakeColor = `rgb(${Math.random()*255},${Math.random()*255},${Math.random()*255})`;
             } else {
                 snake.pop();
             }
+        }
 
-            drawSnake();
+        function gameLoop() {
+            moveSnake();
+            drawGame();
+        }
 
-            ctx.fillStyle = 'red';
-            ctx.fillRect(food.x * BLOCK_SIZE, food.y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
-
+        function gameOver() {
+            clearInterval(gameInterval);
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = 'white';
             ctx.font = `${BLOCK_SIZE}px Arial`;
-            ctx.fillText(`得分: ${score}`, BLOCK_SIZE, BLOCK_SIZE * 1.5);
+            ctx.textAlign = 'center';
+            ctx.fillText(`游戏结束! 得分: ${score}`, canvas.width / 2, canvas.height / 2);
+            startBtn.textContent = '重新开始';
+            startBtn.disabled = false;
         }
+
+        function startGame() {
+            initializeGame();
+            if (gameInterval) clearInterval(gameInterval);
+            gameInterval = setInterval(gameLoop, 200);
+            startBtn.disabled = true;
+        }
+
+        startBtn.addEventListener('click', startGame);
+
+        ['up', 'down', 'left', 'right'].forEach(dir => {
+            document.getElementById(`${dir}Btn`).addEventListener('click', () => {
+                if ((dir === 'up' && direction !== 'DOWN') ||
+                    (dir === 'down' && direction !== 'UP') ||
+                    (dir === 'left' && direction !== 'RIGHT') ||
+                    (dir === 'right' && direction !== 'LEFT')) {
+                    direction = dir.toUpperCase();
+                }
+            });
+        });
 
         window.addEventListener('resize', resizeGame);
         resizeGame();
-
-        let gameInterval = setInterval(gameLoop, 150);
     </script>
 </body>
 </html>
