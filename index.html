@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML5 贪吃蛇游戏</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        #gameCanvas {
+            border: 2px solid #333;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const WIDTH = 800;
+        const HEIGHT = 600;
+        const BLOCK_SIZE = 20;
+        const GRID_WIDTH = WIDTH / BLOCK_SIZE;
+        const GRID_HEIGHT = HEIGHT / BLOCK_SIZE;
+
+        let snake = [{x: Math.floor(GRID_WIDTH / 2), y: Math.floor(GRID_HEIGHT / 2)}];
+        let direction = 'RIGHT';
+        let food = {};
+        let score = 0;
+        let snakeColor = '#00FF00';
+
+        function generateFood() {
+            food = {
+                x: Math.floor(Math.random() * GRID_WIDTH),
+                y: Math.floor(Math.random() * GRID_HEIGHT)
+            };
+            // 确保食物不会生成在蛇身上
+            while (snake.some(segment => segment.x === food.x && segment.y === food.y)) {
+                food = {
+                    x: Math.floor(Math.random() * GRID_WIDTH),
+                    y: Math.floor(Math.random() * GRID_HEIGHT)
+                };
+            }
+        }
+
+        function isPositionSafe(pos) {
+            return pos.x >= 0 && pos.x < GRID_WIDTH && pos.y >= 0 && pos.y < GRID_HEIGHT &&
+                   !snake.some((segment, index) => index !== 0 && segment.x === pos.x && segment.y === pos.y);
+        }
+
+        function getNextPosition(pos, dir) {
+            switch(dir) {
+                case 'UP': return {x: pos.x, y: pos.y - 1};
+                case 'DOWN': return {x: pos.x, y: pos.y + 1};
+                case 'LEFT': return {x: pos.x - 1, y: pos.y};
+                case 'RIGHT': return {x: pos.x + 1, y: pos.y};
+            }
+        }
+
+        function simpleMove() {
+            const head = snake[0];
+            const directions = ['UP', 'DOWN', 'LEFT', 'RIGHT'];
+            const safeDirections = directions.filter(dir => 
+                isPositionSafe(getNextPosition(head, dir))
+            );
+
+            if (safeDirections.length === 0) return direction;
+
+            let foodDir = null;
+            if (food.x < head.x) foodDir = 'LEFT';
+            else if (food.x > head.x) foodDir = 'RIGHT';
+            else if (food.y < head.y) foodDir = 'UP';
+            else if (food.y > head.y) foodDir = 'DOWN';
+
+            if (foodDir && safeDirections.includes(foodDir)) {
+                return foodDir;
+            } else {
+                return safeDirections[Math.floor(Math.random() * safeDirections.length)];
+            }
+        }
+
+        function drawSnake() {
+            snake.forEach((segment, index) => {
+                ctx.fillStyle = snakeColor;
+                if (index === 0) {  // 头部
+                    ctx.fillRect(segment.x * BLOCK_SIZE, segment.y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
+                    // 画眼睛
+                    ctx.fillStyle = 'black';
+                    const eyeRadius = BLOCK_SIZE / 5;
+                    if (direction === 'RIGHT') {
+                        ctx.beginPath();
+                        ctx.arc(segment.x * BLOCK_SIZE + BLOCK_SIZE - eyeRadius, segment.y * BLOCK_SIZE + eyeRadius, eyeRadius, 0, 2 * Math.PI);
+                        ctx.arc(segment.x * BLOCK_SIZE + BLOCK_SIZE - eyeRadius, segment.y * BLOCK_SIZE + BLOCK_SIZE - eyeRadius, eyeRadius, 0, 2 * Math.PI);
+                        ctx.fill();
+                    } else if (direction === 'LEFT') {
+                        ctx.beginPath();
+                        ctx.arc(segment.x * BLOCK_SIZE + eyeRadius, segment.y * BLOCK_SIZE + eyeRadius, eyeRadius, 0, 2 * Math.PI);
+                        ctx.arc(segment.x * BLOCK_SIZE + eyeRadius, segment.y * BLOCK_SIZE + BLOCK_SIZE - eyeRadius, eyeRadius, 0, 2 * Math.PI);
+                        ctx.fill();
+                    } else if (direction === 'UP') {
+                        ctx.beginPath();
+                        ctx.arc(segment.x * BLOCK_SIZE + eyeRadius, segment.y * BLOCK_SIZE + eyeRadius, eyeRadius, 0, 2 * Math.PI);
+                        ctx.arc(segment.x * BLOCK_SIZE + BLOCK_SIZE - eyeRadius, segment.y * BLOCK_SIZE + eyeRadius, eyeRadius, 0, 2 * Math.PI);
+                        ctx.fill();
+                    } else if (direction === 'DOWN') {
+                        ctx.beginPath();
+                        ctx.arc(segment.x * BLOCK_SIZE + eyeRadius, segment.y * BLOCK_SIZE + BLOCK_SIZE - eyeRadius, eyeRadius, 0, 2 * Math.PI);
+                        ctx.arc(segment.x * BLOCK_SIZE + BLOCK_SIZE - eyeRadius, segment.y * BLOCK_SIZE + BLOCK_SIZE - eyeRadius, eyeRadius, 0, 2 * Math.PI);
+                        ctx.fill();
+                    }
+                } else if (index === snake.length - 1) {  // 尾部
+                    ctx.strokeStyle = snakeColor;
+                    ctx.strokeRect(segment.x * BLOCK_SIZE, segment.y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
+                } else {  // 身体
+                    ctx.fillRect(segment.x * BLOCK_SIZE, segment.y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
+                }
+            });
+        }
+
+        function gameOver() {
+            ctx.fillStyle = 'red';
+            ctx.font = '50px Arial';
+            ctx.fillText(`Game Over! Score: ${score}`, WIDTH / 4, HEIGHT / 2);
+            clearInterval(gameInterval);
+        }
+
+        function gameLoop() {
+            // 清除画布
+            ctx.clearRect(0, 0, WIDTH, HEIGHT);
+
+            // 移动蛇
+            direction = simpleMove();
+            const newHead = getNextPosition(snake[0], direction);
+
+            // 检查游戏是否结束
+            if (!isPositionSafe(newHead)) {
+                gameOver();
+                return;
+            }
+
+            // 更新蛇的位置
+            snake.unshift(newHead);
+
+            // 检查是否吃到食物
+            if (newHead.x === food.x && newHead.y === food.y) {
+                score++;
+                generateFood();
+                snakeColor = `rgb(${Math.random()*255},${Math.random()*255},${Math.random()*255})`;
+            } else {
+                snake.pop();
+            }
+
+            // 绘制蛇
+            drawSnake();
+
+            // 绘制食物
+            ctx.fillStyle = 'red';
+            ctx.fillRect(food.x * BLOCK_SIZE, food.y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
+
+            // 显示分数
+            ctx.fillStyle = 'white';
+            ctx.font = '20px Arial';
+            ctx.fillText(`Score: ${score}`, 10, 30);
+        }
+
+        generateFood();
+        const gameInterval = setInterval(gameLoop, 100);  // 每100毫秒更新一次游戏状态
+    </script>
+</body>
+</html>
