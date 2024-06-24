@@ -2,47 +2,75 @@
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HTML5 贪吃蛇游戏</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>移动适配版贪吃蛇游戏</title>
     <style>
         body {
+            margin: 0;
+            padding: 0;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
-            margin: 0;
             background-color: #f0f0f0;
+            overflow: hidden;
         }
         #gameCanvas {
             border: 2px solid #333;
+            max-width: 100%;
+            max-height: 100%;
         }
     </style>
 </head>
 <body>
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <canvas id="gameCanvas"></canvas>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        const WIDTH = 800;
-        const HEIGHT = 600;
-        const BLOCK_SIZE = 20;
-        const GRID_WIDTH = WIDTH / BLOCK_SIZE;
-        const GRID_HEIGHT = HEIGHT / BLOCK_SIZE;
+        let WIDTH, HEIGHT, BLOCK_SIZE, GRID_WIDTH, GRID_HEIGHT;
 
-        let snake = [{x: Math.floor(GRID_WIDTH / 2), y: Math.floor(GRID_HEIGHT / 2)}];
-        let direction = 'RIGHT';
-        let food = {};
-        let score = 0;
-        let snakeColor = '#00FF00';
+        function resizeGame() {
+            const maxWidth = window.innerWidth * 0.95;
+            const maxHeight = window.innerHeight * 0.95;
+            const aspectRatio = 4/3;
+
+            if (maxWidth / aspectRatio > maxHeight) {
+                HEIGHT = maxHeight;
+                WIDTH = HEIGHT * aspectRatio;
+            } else {
+                WIDTH = maxWidth;
+                HEIGHT = WIDTH / aspectRatio;
+            }
+
+            BLOCK_SIZE = Math.floor(WIDTH / 20);
+            GRID_WIDTH = Math.floor(WIDTH / BLOCK_SIZE);
+            GRID_HEIGHT = Math.floor(HEIGHT / BLOCK_SIZE);
+
+            canvas.width = GRID_WIDTH * BLOCK_SIZE;
+            canvas.height = GRID_HEIGHT * BLOCK_SIZE;
+
+            // 重新初始化游戏状态
+            initializeGame();
+        }
+
+        let snake, direction, food, score, snakeColor;
+
+        function initializeGame() {
+            snake = [{x: Math.floor(GRID_WIDTH / 2), y: Math.floor(GRID_HEIGHT / 2)}];
+            direction = 'RIGHT';
+            food = {};
+            score = 0;
+            snakeColor = '#00FF00';
+            generateFood();
+        }
 
         function generateFood() {
             food = {
                 x: Math.floor(Math.random() * GRID_WIDTH),
                 y: Math.floor(Math.random() * GRID_HEIGHT)
             };
-            // 确保食物不会生成在蛇身上
             while (snake.some(segment => segment.x === food.x && segment.y === food.y)) {
                 food = {
                     x: Math.floor(Math.random() * GRID_WIDTH),
@@ -126,30 +154,29 @@
         }
 
         function gameOver() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = 'red';
-            ctx.font = '50px Arial';
-            ctx.fillText(`Game Over! Score: ${score}`, WIDTH / 4, HEIGHT / 2);
+            ctx.font = `${BLOCK_SIZE * 2}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.fillText(`游戏结束!`, canvas.width / 2, canvas.height / 2 - BLOCK_SIZE);
+            ctx.fillText(`得分: ${score}`, canvas.width / 2, canvas.height / 2 + BLOCK_SIZE);
             clearInterval(gameInterval);
         }
 
         function gameLoop() {
-            // 清除画布
-            ctx.clearRect(0, 0, WIDTH, HEIGHT);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // 移动蛇
             direction = simpleMove();
             const newHead = getNextPosition(snake[0], direction);
 
-            // 检查游戏是否结束
             if (!isPositionSafe(newHead)) {
                 gameOver();
                 return;
             }
 
-            // 更新蛇的位置
             snake.unshift(newHead);
 
-            // 检查是否吃到食物
             if (newHead.x === food.x && newHead.y === food.y) {
                 score++;
                 generateFood();
@@ -158,21 +185,20 @@
                 snake.pop();
             }
 
-            // 绘制蛇
             drawSnake();
 
-            // 绘制食物
             ctx.fillStyle = 'red';
             ctx.fillRect(food.x * BLOCK_SIZE, food.y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
 
-            // 显示分数
             ctx.fillStyle = 'white';
-            ctx.font = '20px Arial';
-            ctx.fillText(`Score: ${score}`, 10, 30);
+            ctx.font = `${BLOCK_SIZE}px Arial`;
+            ctx.fillText(`得分: ${score}`, BLOCK_SIZE, BLOCK_SIZE * 1.5);
         }
 
-        generateFood();
-        const gameInterval = setInterval(gameLoop, 100);  // 每100毫秒更新一次游戏状态
+        window.addEventListener('resize', resizeGame);
+        resizeGame();
+
+        let gameInterval = setInterval(gameLoop, 150);
     </script>
 </body>
 </html>
